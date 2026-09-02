@@ -37,13 +37,34 @@
       margin: 0 auto;
     }
 
-    h1 {
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 0.3rem;
+    }
+
+    h1 {
+      margin: 0;
       font-size: 1.8rem;
       font-weight: 700;
       color: var(--accent);
       letter-spacing: -0.5px;
     }
+
+    .mode-badge {
+      font-size: 0.75rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-admin { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+    .mode-view { background: #1e293b; color: #38bdf8; border: 1px solid #38bdf8; }
+    .mode-badge:hover { opacity: 0.8; }
 
     p.desc {
       color: var(--text-muted);
@@ -70,6 +91,10 @@
       border-radius: 8px;
       padding: 1rem;
       margin-bottom: 1.5rem;
+    }
+
+    .admin-only {
+      display: none;
     }
 
     .top-controls {
@@ -351,10 +376,13 @@
 <body>
 
 <div class="container">
-  <h1>Vencimientos SSL</h1>
+  <div class="header-row">
+    <h1>Vencimientos SSL</h1>
+    <span id="modeBadge" class="mode-badge mode-view" onclick="alternarModoAdmin()">🔒 Modo Lectura</span>
+  </div>
   <p class="desc">Sistema de monitoreo continuo de certificados SSL.</p>
 
-  <div class="card">
+  <div class="card admin-only" id="adminPanel">
     <div class="top-controls">
       <div class="upload-box" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <strong>Cargar planilla (Excel / CSV)</strong>
@@ -415,9 +443,54 @@
 </div>
 
 <script>
+  // CLAVE PARA ACCESO ADMINISTRADOR: Cambiar por la contraseña deseada
+  const CLAVE_ADMIN = "admin123";
+
   let listaDominios = [];
   let timerModal = null;
   let chequeandoTodo = false;
+  let esAdmin = false;
+
+  function verificarSesionAdmin() {
+    esAdmin = sessionStorage.getItem('ssl_admin_active') === 'true';
+    actualizarInterfazModo();
+  }
+
+  function alternarModoAdmin() {
+    if (esAdmin) {
+      if (confirm('¿Deseas salir del modo administración?')) {
+        sessionStorage.removeItem('ssl_admin_active');
+        esAdmin = false;
+        actualizarInterfazModo();
+        renderTabla();
+      }
+    } else {
+      const pass = prompt('Ingresa la contraseña de administración:');
+      if (pass === CLAVE_ADMIN) {
+        sessionStorage.setItem('ssl_admin_active', 'true');
+        esAdmin = true;
+        actualizarInterfazModo();
+        renderTabla();
+      } else if (pass !== null) {
+        alert('Contraseña incorrecta.');
+      }
+    }
+  }
+
+  function actualizarInterfazModo() {
+    const badge = document.getElementById('modeBadge');
+    const adminPanel = document.getElementById('adminPanel');
+
+    if (esAdmin) {
+      badge.innerHTML = '🔑 Modo Admin (Salir)';
+      badge.className = 'mode-badge mode-admin';
+      adminPanel.style.display = 'block';
+    } else {
+      badge.innerHTML = '🔒 Modo Lectura (Acceso)';
+      badge.className = 'mode-badge mode-view';
+      adminPanel.style.display = 'none';
+    }
+  }
 
   function actualizarTimestamp() {
     const ahora = new Date();
@@ -481,14 +554,11 @@
     return { error: "Error de consulta" };
   }
 
-  // ORDENAMIENTO: Menos días restantes ARRIBA, errores al final
   function ordenarYRenderizar() {
     listaDominios.sort((a, b) => {
-      // 1. Cargando al final
       if (a.cargando && !b.cargando) return 1;
       if (!a.cargando && b.cargando) return -1;
       
-      // 2. Extraer días restantes (Errores van con valor muy alto para ir al final)
       const valA = (typeof a.diasRestantes === 'number' && !a.error) ? a.diasRestantes : 99999;
       const valB = (typeof b.diasRestantes === 'number' && !b.error) ? b.diasRestantes : 99999;
       
@@ -548,6 +618,10 @@
         }
       }
 
+      const btnEliminar = esAdmin 
+        ? `<button class="btn-icon btn-del" title="Eliminar" onclick="eliminarDominio('${item.domain}')">&times;</button>` 
+        : '';
+
       tr.innerHTML = `
         <td><strong>${item.domain}</strong></td>
         <td>${estadoHtml}</td>
@@ -556,7 +630,7 @@
         <td>
           <div class="action-cell">
             <button class="btn-icon" title="Rechequear este sitio" onclick="reconsultarIndividual('${item.domain}')">🔄</button>
-            <button class="btn-icon btn-del" title="Eliminar" onclick="eliminarDominio('${item.domain}')">&times;</button>
+            ${btnEliminar}
           </div>
         </td>
       `;
@@ -593,6 +667,7 @@
   }
 
   function agregarDominio(dominio) {
+    if (!esAdmin) return;
     const clean = limpiarUrl(dominio);
     
     if (!clean || esIP(clean)) return;
@@ -612,6 +687,7 @@
   }
 
   function eliminarDominio(dominio) {
+    if (!esAdmin) return;
     listaDominios = listaDominios.filter(d => d.domain !== dominio);
     guardarPersistencia();
     ordenarYRenderizar();
@@ -652,7 +728,7 @@
   }
 
   function procesarArchivo(file) {
-    if (!file) return;
+    if (!esAdmin || !file) return;
 
     const reader = new FileReader();
     reader.onload = function(evt) {
@@ -731,6 +807,7 @@
   }
 
   window.addEventListener('DOMContentLoaded', () => {
+    verificarSesionAdmin();
     cargarPersistencia();
 
     const dropZone = document.getElementById('dropZone');
@@ -748,6 +825,7 @@
     });
 
     dropZone.addEventListener('drop', (e) => {
+      if (!esAdmin) return;
       const files = e.dataTransfer.files;
       if (files && files.length > 0) procesarArchivo(files[0]);
     }, false);
