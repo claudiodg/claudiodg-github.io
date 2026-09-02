@@ -4,380 +4,713 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vencimientos SSL - Panel de Control</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- SheetJS para procesar archivos Excel/CSV -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+    :root {
+      --bg: #09090b;
+      --card: #121215;
+      --border: #27272a;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --accent: #22c55e;
+      --accent-hover: #16a34a;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --danger-bg: #451a1a;
+      --warning-bg: #45300f;
+      --success-bg: #0f381e;
+      --loading-bg: #1e293b;
     }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #1f2937;
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
     }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #374151;
-      border-radius: 3px;
+
+    .container {
+      max-width: 1050px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 0.3rem;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    p.desc {
+      color: var(--text-muted);
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .last-update {
+      font-size: 0.78rem;
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Fila en 2 columnas: Cargar planilla + Agregar manual */
+    .top-controls {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .upload-box {
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      text-align: center;
+      background: #18181b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      height: 38px;
+      box-sizing: border-box;
+    }
+
+    .upload-box:hover, .upload-box.dragover {
+      border-color: var(--accent);
+      background: #1c241e;
+    }
+
+    .upload-box strong {
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .upload-box p {
+      margin: 0 !important;
+      font-size: 0.72rem !important;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 0.55rem 0.8rem;
+      background: #18181b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: var(--text);
+      outline: none;
+      height: 38px;
+      box-sizing: border-box;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0 1.2rem;
+      height: 38px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    button.secondary {
+      background: #18181b;
+      color: var(--text);
+      border: 1px solid var(--border);
+      height: 36px;
+    }
+
+    button.secondary:hover {
+      background: #27272a;
+    }
+
+    /* Tableros de métricas */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 1.6rem 1.25rem;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 2.3rem;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-top: 0.4rem;
+    }
+
+    /* Buscador compacto debajo de las cards */
+    .search-container {
+      margin-bottom: 1.25rem;
+    }
+
+    .search-input {
+      width: 100%;
+      max-width: 320px;
+      background: #121215;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      color: var(--text);
+      box-sizing: border-box;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 0.8rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: #18181b;
+      font-weight: 600;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-ok { background: var(--success-bg); color: var(--accent); }
+    .badge-warn { background: var(--warning-bg); color: var(--warning); }
+    .badge-err { background: var(--danger-bg); color: var(--danger); }
+    .badge-loading { background: var(--loading-bg); color: #38bdf8; }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .action-cell {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .btn-icon {
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 0.95rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      color: var(--text);
+      background: #27272a;
+    }
+
+    .btn-del:hover {
+      color: var(--danger);
+      background: var(--danger-bg);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      max-width: 450px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal h3 {
+      margin-top: 0;
+      color: var(--warning);
+      font-size: 1.1rem;
+    }
+
+    .modal-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 1rem 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .modal-list li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 0.6rem;
+      background: var(--warning);
+      color: #000;
+      font-weight: 700;
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
+<body>
 
-  <!-- ENCABEZADO -->
-  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <div class="flex items-center space-x-3">
-        <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
-          <i data-lucide="shield-check" class="w-6 h-6"></i>
-        </div>
-        <div>
-          <h1 class="text-xl font-bold text-white tracking-tight">Vencimientos SSL</h1>
-          <p class="text-xs text-slate-400">Sistema de monitoreo continuo de certificados SSL.</p>
-        </div>
+<div class="container">
+  <h1>Vencimientos SSL</h1>
+  <p class="desc">Sistema de monitoreo continuo de certificados SSL.</p>
+
+  <div class="card">
+    <div class="top-controls">
+      <div class="upload-box" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <strong>Cargar planilla (Excel / CSV)</strong>
+        <p>— Arrastrá o haz clic</p>
+        <input type="file" id="fileInput" accept=".csv, .xlsx, .xls" style="display: none" onchange="procesarArchivo(this.files[0])">
       </div>
       
-      <!-- Cargar Excel / Agregar Sitio -->
-      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-        <label for="excelInput" class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-          <i data-lucide="file-spread-sheet" class="w-4 h-4 text-emerald-400"></i>
-          <span>Cargar Excel / CSV</span>
-          <input type="file" id="excelInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="cargarDesdeExcel(event)">
-        </label>
-        
-        <form onsubmit="agregarSitioManual(event)" class="flex gap-1">
-          <input type="text" id="nuevoSitioInput" placeholder="Agregar URL (ej: google.com)" class="bg-slate-900 border border-slate-700 text-xs text-white px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-500 w-44">
-          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-2 rounded-lg transition font-medium">
-            Agregar
-          </button>
-        </form>
-      </div>
-    </div>
-  </header>
-
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-
-    <!-- METRICAS / RANGOS -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-        <div class="flex justify-between items-center text-emerald-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vigentes</span>
-          <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-        </div>
-        <div id="cntVigentes" class="text-2xl font-bold text-white">0</div>
-      </div>
-
-      <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-        <div class="flex justify-between items-center text-amber-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Por vencer (≤7 días)</span>
-          <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-        </div>
-        <div id="cntPorVencer" class="text-2xl font-bold text-white">0</div>
-      </div>
-
-      <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-        <div class="flex justify-between items-center text-rose-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vencidos / Error</span>
-          <i data-lucide="x-circle" class="w-4 h-4"></i>
-        </div>
-        <div id="cntVencidos" class="text-2xl font-bold text-white">0</div>
-      </div>
-
-      <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-        <div class="flex justify-between items-center text-indigo-400 mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Monitoreados</span>
-          <i data-lucide="globe" class="w-4 h-4"></i>
-        </div>
-        <div id="cntTotal" class="text-2xl font-bold text-white">0</div>
-      </div>
-    </div>
-
-    <!-- TABLA DE SITIOS Y ACCIONES -->
-    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-      <!-- Toolbar superior -->
-      <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div class="relative w-full sm:w-64">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-500"></i>
-          <input type="text" id="buscarInput" oninput="filtrarTabla()" placeholder="Buscar sitio..." class="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 pl-9 pr-3 py-2 rounded-lg focus:outline-none focus:border-indigo-500">
-        </div>
-
-        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <span id="ultimaAct" class="text-xs text-slate-500 mr-2">Última act: Nunca</span>
-          <button onclick="rechequearTodo()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-2 rounded-lg transition font-medium flex items-center gap-1.5">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="iconRefreshAll"></i>
-            <span>Rechequear todo</span>
-          </button>
-          <button onclick="exportarCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i>
-            <span>Exportar CSV</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Tabla responsiva -->
-      <div class="overflow-x-auto custom-scrollbar max-h-[600px]">
-        <table class="w-full text-left text-xs text-slate-300">
-          <thead class="bg-slate-950/80 text-slate-400 font-semibold uppercase tracking-wider sticky top-0 backdrop-blur z-10 border-b border-slate-800">
-            <tr>
-              <th class="px-4 py-3">URL</th>
-              <th class="px-4 py-3">Estado</th>
-              <th class="px-4 py-3">Días Restantes</th>
-              <th class="px-4 py-3">Vence El</th>
-              <th class="px-4 py-3 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tablaCuerpo" class="divide-y divide-slate-800/60 font-mono">
-            <!-- Los sitios se renderizan dinámicamente -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </main>
-
-  <!-- MODAL DE ALERTAS -->
-  <div id="modalAlerta" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-      <div class="flex items-center gap-3 text-amber-400">
-        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
-        <h3 class="text-base font-bold text-white">Alerta de Certificados por Vencer</h3>
-      </div>
-      <p class="text-xs text-slate-300 leading-relaxed">
-        Los siguientes sitios vencen en menos de 7 días o ya están vencidos:
-      </p>
-      <ul id="listaAlertas" class="text-xs text-rose-400 bg-slate-950 p-3 rounded-lg max-h-40 overflow-y-auto space-y-1 font-mono border border-slate-800">
-      </ul>
-      <div class="flex justify-end pt-2">
-        <button onclick="cerrarModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg font-medium border border-slate-700">
-          Entendido
-        </button>
+      <div class="input-row">
+        <input type="text" id="singleUrl" placeholder="Agregar URL manual (ej: google.com)">
+        <button onclick="agregarUrlSuelta()">Agregar</button>
       </div>
     </div>
   </div>
 
-  <!-- JAVASCRIPT Y LÓGICA CONEXIÓN A RENDER -->
-  <script>
-    // URL DE TU BACKEND EN RENDER (HTTPS)
+  <div class="stats">
+    <div class="stat-card"><div class="stat-val" id="cntVigentes" style="color: var(--accent);">0</div><div class="stat-label">Vigentes</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntPorVencer" style="color: var(--warning);">0</div><div class="stat-label">Por vencer (≤7 días)</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntError" style="color: var(--danger);">0</div><div class="stat-label">Vencidos / Error</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntTotal">0</div><div class="stat-label">Total Monitoreados</div></div>
+  </div>
+
+  <div class="search-container">
+    <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar sitio..." oninput="renderTabla()">
+  </div>
+
+  <div class="actions">
+    <span id="cantSitiosText" style="font-size: 0.85rem; color: var(--text-muted);">0 sitios</span>
+    <div class="action-buttons">
+      <span class="last-update" id="lastUpdateText">Última act: Sin consultas</span>
+      <button class="secondary" onclick="reconsultarTodo()">Rechequear todo</button>
+      <button class="secondary" onclick="exportarCSV()">Exportar CSV</button>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>URL</th>
+        <th>Estado</th>
+        <th>Días restantes</th>
+        <th>Vence el</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tablaBody">
+      <!-- Contenido dinámico -->
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-overlay" id="alertModal">
+  <div class="modal">
+    <h3>⚠️ Alerta de Certificados por Vencer</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted);">Los siguientes sitios vencen en menos de 7 días o ya están vencidos:</p>
+    <ul class="modal-list" id="modalList"></ul>
+    <button class="modal-btn" onclick="cerrarModal()">Entendido</button>
+  </div>
+</div>
+
+<script>
+  let listaDominios = [];
+  let timerModal = null;
+
+  function actualizarTimestamp() {
+    const ahora = new Date();
+    const hora = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const fecha = ahora.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    document.getElementById('lastUpdateText').innerText = `Última act: ${fecha} ${hora}`;
+  }
+
+  function esIP(str) {
+    const regexIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const regexIPv6 = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+    return regexIPv4.test(str) || regexIPv6.test(str);
+  }
+
+  function limpiarUrl(url) {
+    if (!url) return '';
+    return url.trim().toLowerCase()
+      .replace(/^(https?:\/\/)/, '')
+      .replace(/\/$/, '')
+      .split('/')[0]
+      .split(':')[0];
+  }
+
+  function guardarPersistencia() {
+    localStorage.setItem('ssl_dominios', JSON.stringify(listaDominios));
+  }
+
+  function cargarPersistencia() {
+    const guardados = localStorage.getItem('ssl_dominios');
+    if (guardados) {
+      try {
+        listaDominios = JSON.parse(guardados);
+        listaDominios = listaDominios.filter(d => !esIP(limpiarUrl(d.domain)));
+        ordenarYRenderizar();
+      } catch (e) {
+        listaDominios = [];
+      }
+    }
+  }
+
+  async function consultarSSL(dominio) {
+    if (!dominio) return { error: "URL inválida" };
+
     const BACKEND_URL = "https://py-server-ssl.onrender.com";
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    // Lista por defecto de dominios
-    let sitios = [
-      "carmuv.com.ar", "sapprnet.renault-nissan.com", "autocity.nosconecta.com", "ftpghrtest.pn.cegid.cloud",
-      "plannacionaljeep.com", "turnero.autocity.com.ar", "www.changancitydrive.com.ar", "rubic.com.ar",
-      "servicios1.afip.gov.ar", "www.facebook.com", "api.autocity.com.ar", "www.motcor.com.ar",
-      "cherycitydrive.com.ar", "www.estanciaq2.com.ar", "citydrive.com.ar", "plannacionalnissan.com",
-      "tagle.cloudycrm.net", "app.hola-c.com", "plandeahorroargentina.com", "elterrongolfclub.com",
-      "tagle.kamaycrm.com", "grupotagle.atlassian.net", "mandrillapp.com", "denat.com.ar",
-      "grupotagle.lightning.force.com", "rolen.com.ar", "bydautocity.com.ar", "meta4.grupotagle.com.ar",
-      "ftpghr.pn.cegid.cloud", "www.tsdocs.com.ar", "tagle.com.ar", "abm-api.autocity.com.ar",
-      "app.starmeup.com", "www.avant.com.ar", "leapmotorautocity.com.ar", "maestrodigital.autocity.com.ar",
-      "cuentas.autocity.com.ar", "scratch-house.com", "web.telegram.org", "www.royalenfieldcordoba.com.ar",
-      "web.whatsapp.com", "app.slack.com", "app.asofix.com", "sumate.grupotagle.com.ar",
-      "proveedores.grupotagle.com.ar", "asofix.com", "autocity.com.ar", "grupotagle-world.monday.com",
-      "plan-peugeot.com", "planesmotcor.com", "apiv1.autocity.com.ar", "app.humand.co",
-      "autocity.turecibo.com", "www.motoplexcordoba.com.ar", "grupotagle.com.ar", "srvweb05.ddns.net",
-      "sdi.autocity.com.ar", "autocity.s1gateway.com", "cobrar.autocity.com.ar", "ole.com", "planvw.com"
-    ].map(url => ({ url, estado: 'Pendiente', dias: '—', fecha: '—', cargando: false }));
+    try {
+      const res = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-    document.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      renderTabla();
-      rechequearTodo();
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      clearTimeout(timeoutId);
+      console.error(e);
+    }
+
+    return { error: "No se pudo consultar" };
+  }
+
+  function ordenarYRenderizar() {
+    listaDominios.sort((a, b) => {
+      if (a.cargando) return 1;
+      if (b.cargando) return -1;
+      if (a.diasRestantes === null || a.diasRestantes === undefined) return 1;
+      if (b.diasRestantes === null || b.diasRestantes === undefined) return -1;
+      return a.diasRestantes - b.diasRestantes;
     });
 
-    async function consultarSSL(dominio) {
-      try {
-        const response = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`);
-        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-        
-        const data = await response.json();
-        if (data.error) {
-          return { estado: 'Error', dias: '—', fecha: '—' };
-        }
+    renderTabla();
+  }
 
-        let estado = 'Vigente';
-        if (data.diasRestantes <= 0) estado = 'Vencido';
-        else if (data.diasRestantes <= 7) estado = 'Por vencer';
+  function renderTabla() {
+    const tbody = document.getElementById('tablaBody');
+    const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+    tbody.innerHTML = '';
 
-        return {
-          estado: estado,
-          dias: data.diasRestantes,
-          fecha: data.vence
-        };
-      } catch (err) {
-        console.error("Error al consultar backend:", err);
-        return { estado: 'No se pudo consultar', dias: '—', fecha: '—' };
-      }
-    }
+    let cntVigentes = 0, cntPorVencer = 0, cntError = 0;
 
-    async function rechequearSitio(index) {
-      sitios[index].cargando = true;
-      sitios[index].estado = 'Consultando...';
-      renderTabla();
-
-      const resultado = await consultarSSL(sitios[index].url);
-      
-      sitios[index].estado = resultado.estado;
-      sitios[index].dias = resultado.dias;
-      sitios[index].fecha = resultado.fecha;
-      sitios[index].cargando = false;
-
-      actualizarMetricas();
-      renderTabla();
-    }
-
-    async function rechequearTodo() {
-      const icon = document.getElementById('iconRefreshAll');
-      if (icon) icon.classList.add('animate-spin');
-
-      document.getElementById('ultimaAct').textContent = `Última act: ${new Date().toLocaleTimeString()}`;
-
-      // Procesar en tandas de a 5 sitios simultáneos
-      const CONCURRENCY_LIMIT = 5;
-      for (let i = 0; i < sitios.length; i += CONCURRENCY_LIMIT) {
-        const lote = [];
-        for (let j = i; j < i + CONCURRENCY_LIMIT && j < sitios.length; j++) {
-          lote.push(rechequearSitio(j));
-        }
-        await Promise.all(lote);
+    listaDominios.forEach((item, index) => {
+      if (!item.cargando) {
+        if (item.error || item.diasRestantes <= 0) cntError++;
+        else if (item.diasRestantes <= 7) cntPorVencer++;
+        else cntVigentes++;
       }
 
-      if (icon) icon.classList.remove('animate-spin');
-      verificarAlertas();
-    }
+      if (query && !item.domain.toLowerCase().includes(query)) {
+        return;
+      }
 
-    function renderTabla() {
-      const tbody = document.getElementById('tablaCuerpo');
-      const filtro = document.getElementById('buscarInput').value.toLowerCase();
-      tbody.innerHTML = '';
+      const tr = document.createElement('tr');
+      let estadoHtml = '';
+      let diasHtml = '—';
+      let venceHtml = '—';
 
-      sitios.forEach((item, index) => {
-        if (filtro && !item.url.toLowerCase().includes(filtro)) return;
+      if (item.cargando) {
+        estadoHtml = `<span class="badge badge-loading">Consultando...</span>`;
+      } else if (item.error) {
+        estadoHtml = `<span class="badge badge-err">${item.error}</span>`;
+      } else {
+        venceHtml = item.vence;
+        diasHtml = item.diasRestantes;
 
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-800/40 transition";
+        if (item.diasRestantes <= 0) {
+          estadoHtml = `<span class="badge badge-err">Vencido</span>`;
+        } else if (item.diasRestantes <= 7) {
+          estadoHtml = `<span class="badge badge-warn">Por vencer</span>`;
+        } else {
+          estadoHtml = `<span class="badge badge-ok">Vigente</span>`;
+        }
+      }
 
-        let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
-        if (item.estado === 'Vigente') badgeClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-        else if (item.estado === 'Por vencer') badgeClass = "bg-amber-500/10 text-amber-400 border-amber-500/20";
-        else if (item.estado === 'Vencido' || item.estado === 'Error' || item.estado === 'No se pudo consultar') badgeClass = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+      tr.innerHTML = `
+        <td><strong>${item.domain}</strong></td>
+        <td>${estadoHtml}</td>
+        <td>${diasHtml}</td>
+        <td>${venceHtml}</td>
+        <td>
+          <div class="action-cell">
+            <button class="btn-icon" title="Rechequear este sitio" onclick="reconsultarIndividual(${index})">🔄</button>
+            <button class="btn-icon btn-del" title="Eliminar" onclick="eliminarDominio(${index})">&times;</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
 
-        tr.innerHTML = `
-          <td class="px-4 py-3 font-medium text-slate-200">${item.url}</td>
-          <td class="px-4 py-3">
-            <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full border ${badgeClass}">
-              ${item.estado}
-            </span>
-          </td>
-          <td class="px-4 py-3 text-slate-300">${item.dias}</td>
-          <td class="px-4 py-3 text-slate-400">${item.fecha}</td>
-          <td class="px-4 py-3 text-right space-x-1">
-            <button onclick="rechequearSitio(${index})" ${item.cargando ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded transition inline-flex">
-              <i data-lucide="refresh-cw" class="w-3.5 h-3.5 ${item.cargando ? 'animate-spin' : ''}"></i>
-            </button>
-            <button onclick="eliminarSitio(${index})" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded transition inline-flex">
-              <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+    document.getElementById('cntVigentes').innerText = cntVigentes;
+    document.getElementById('cntPorVencer').innerText = cntPorVencer;
+    document.getElementById('cntError').innerText = cntError;
+    document.getElementById('cntTotal').innerText = listaDominios.length;
+    document.getElementById('cantSitiosText').innerText = `${listaDominios.length} sitios monitoreados`;
+  }
 
-      lucide.createIcons();
-      actualizarMetricas();
-    }
+  async function procesarItem(index) {
+    if (!listaDominios[index]) return;
+    listaDominios[index].cargando = true;
+    renderTabla();
 
-    function actualizarMetricas() {
-      const vigentes = sitios.filter(s => s.estado === 'Vigente').length;
-      const porVencer = sitios.filter(s => s.estado === 'Por vencer').length;
-      const vencidos = sitios.filter(s => s.estado === 'Vencido' || s.estado === 'Error' || s.estado === 'No se pudo consultar').length;
+    const res = await consultarSSL(listaDominios[index].domain);
+    listaDominios[index].cargando = false;
+    listaDominios[index].vence = res.vence || null;
+    listaDominios[index].diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
+    listaDominios[index].error = res.error || null;
 
-      document.getElementById('cntVigentes').textContent = vigentes;
-      document.getElementById('cntPorVencer').textContent = porVencer;
-      document.getElementById('cntVencidos').textContent = vencidos;
-      document.getElementById('cntTotal').textContent = sitios.length;
-    }
+    actualizarTimestamp();
+    guardarPersistencia();
+    ordenarYRenderizar();
+    verificarAlertas();
+  }
 
-    function agregarSitioManual(e) {
-      e.preventDefault();
-      const input = document.getElementById('nuevoSitioInput');
-      const url = input.value.trim();
-      if (!url) return;
+  function reconsultarIndividual(index) {
+    procesarItem(index);
+  }
 
-      sitios.unshift({ url, estado: 'Pendiente', dias: '—', fecha: '—', cargando: false });
+  function agregarDominio(dominio) {
+    const clean = limpiarUrl(dominio);
+    
+    if (!clean || esIP(clean)) return;
+    if (listaDominios.some(d => limpiarUrl(d.domain) === clean)) return;
+
+    const index = listaDominios.length;
+    listaDominios.push({ domain: clean, cargando: true, vence: null, diasRestantes: null, error: null });
+    guardarPersistencia();
+    procesarItem(index);
+  }
+
+  function agregarUrlSuelta() {
+    const input = document.getElementById('singleUrl');
+    if (input.value) {
+      agregarDominio(input.value);
       input.value = '';
-      renderTabla();
-      rechequearSitio(0);
     }
+  }
 
-    function eliminarSitio(index) {
-      sitios.splice(index, 1);
-      renderTabla();
-    }
+  function eliminarDominio(index) {
+    listaDominios.splice(index, 1);
+    guardarPersistencia();
+    ordenarYRenderizar();
+  }
 
-    function filtrarTabla() {
-      renderTabla();
-    }
+  function reconsultarTodo() {
+    actualizarTimestamp();
+    listaDominios.forEach((_, idx) => procesarItem(idx));
+  }
 
-    function verificarAlertas() {
-      const deRiesgo = sitios.filter(s => s.estado === 'Por vencer' || s.estado === 'Vencido');
-      if (deRiesgo.length > 0) {
-        const lista = document.getElementById('listaAlertas');
-        lista.innerHTML = deRiesgo.map(s => `<li>• ${s.url} (${s.estado} - ${s.dias} días)</li>`).join('');
-        document.getElementById('modalAlerta').classList.remove('hidden');
-      }
-    }
+  function procesarArchivo(file) {
+    if (!file) return;
 
-    function cerrarModal() {
-      document.getElementById('modalAlerta').classList.add('hidden');
-    }
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-    function exportarCSV() {
-      let csvContent = "data:text/csv;charset=utf-8,URL,Estado,Dias Restantes,Fecha Vencimiento\n";
-      sitios.forEach(s => {
-        csvContent += `"${s.url}","${s.estado}","${s.dias}","${s.fecha}"\n`;
-      });
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "reporte_vencimientos_ssl.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    function cargarDesdeExcel(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-        const nuevosSitios = [];
-        json.forEach(row => {
-          if (row[0] && typeof row[0] === 'string' && row[0].includes('.')) {
-            const urlLimpia = row[0].trim().replace("https://", "").replace("http://", "").split("/")[0];
-            if (!sitios.some(s => s.url === urlLimpia)) {
-              nuevosSitios.push({ url: urlLimpia, estado: 'Pendiente', dias: '—', fecha: '—', cargando: false });
-            }
+      rows.forEach(row => {
+        if (row && row.length > 0) {
+          const val = row[0] ? row[0].toString() : '';
+          if (val && !val.toLowerCase().includes('url') && !val.toLowerCase().includes('domain')) {
+            agregarDominio(val);
           }
-        });
-
-        if (nuevosSitios.length > 0) {
-          sitios = [...nuevosSitios, ...sitios];
-          renderTabla();
-          rechequearTodo();
         }
-      };
-      reader.readAsArrayBuffer(file);
+      });
+    };
+    reader.readAsArrayBuffer(file);
+    document.getElementById('fileInput').value = '';
+  }
+
+  function verificarAlertas() {
+    const hoy = new Date().toISOString().split('T')[0];
+    const ultimaAlerta = localStorage.getItem('ssl_ultima_alerta');
+
+    if (ultimaAlerta === hoy) return;
+
+    const hayPendientes = listaDominios.some(d => d.cargando);
+    if (hayPendientes) return;
+
+    const criticos = listaDominios.filter(d => d.diasRestantes !== null && d.diasRestantes <= 7);
+    if (criticos.length > 0) {
+      const modalList = document.getElementById('modalList');
+      modalList.innerHTML = '';
+      criticos.forEach(c => {
+        const li = document.createElement('li');
+        const txtStatus = c.diasRestantes <= 0 ? 'VENCIDO' : `${c.diasRestantes} días restantes`;
+        li.innerHTML = `<span><strong>${c.domain}</strong></span><span style="color: var(--warning)">${txtStatus}</span>`;
+        modalList.appendChild(li);
+      });
+      
+      document.getElementById('alertModal').classList.add('active');
+      localStorage.setItem('ssl_ultima_alerta', hoy);
+
+      if (timerModal) clearTimeout(timerModal);
+      timerModal = setTimeout(() => {
+        cerrarModal();
+      }, 300000);
     }
-  </script>
+  }
+
+  function cerrarModal() {
+    document.getElementById('alertModal').classList.remove('active');
+    if (timerModal) {
+      clearTimeout(timerModal);
+      timerModal = null;
+    }
+  }
+
+  function exportarCSV() {
+    if (listaDominios.length === 0) return;
+    let csvContent = "data:text/csv;charset=utf-8,URL,Estado,Dias Restantes,Vence El\n";
+
+    listaDominios.forEach(item => {
+      let estado = item.error ? item.error : (item.diasRestantes <= 0 ? "Vencido" : (item.diasRestantes <= 7 ? "Por vencer" : "Vigente"));
+      csvContent += `"${item.domain}","${estado}","${item.diasRestantes || ''}","${item.vence || ''}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "vencimientos_ssl.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    cargarPersistencia();
+
+    const dropZone = document.getElementById('dropZone');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => {
+      dropZone.addEventListener(eName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eName => {
+      dropZone.addEventListener(eName, () => dropZone.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eName => {
+      dropZone.addEventListener(eName, () => dropZone.classList.remove('dragover'), false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) procesarArchivo(files[0]);
+    }, false);
+
+    setInterval(() => {
+      if (listaDominios.length > 0) {
+        reconsultarTodo();
+      }
+    }, 3600000);
+  });
+</script>
+
 </body>
 </html>
