@@ -4,261 +4,853 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vencimientos SSL - Panel de Control</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #09090b;
+      --card: #121215;
+      --border: #27272a;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --accent: #22c55e;
+      --accent-hover: #16a34a;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --danger-bg: #451a1a;
+      --warning-bg: #45300f;
+      --success-bg: #0f381e;
+      --loading-bg: #1e293b;
+      --purple: #a855f7;
+      --purple-bg: #3b0764;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .mode-badge {
+      font-size: 0.75rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-admin { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple); }
+    .mode-view { background: #1e293b; color: #38bdf8; border: 1px solid #38bdf8; }
+    .mode-badge:hover { opacity: 0.8; }
+
+    p.desc {
+      color: var(--text-muted);
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .last-update {
+      font-size: 0.78rem;
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .admin-only {
+      display: none;
+    }
+
+    .top-controls {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .upload-box {
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      text-align: center;
+      background: #18181b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      height: 38px;
+      box-sizing: border-box;
+    }
+
+    .upload-box:hover, .upload-box.dragover {
+      border-color: var(--accent);
+      background: #1c241e;
+    }
+
+    .upload-box strong {
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .upload-box p {
+      margin: 0 !important;
+      font-size: 0.72rem !important;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 0.55rem 0.8rem;
+      background: #18181b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: var(--text);
+      outline: none;
+      height: 38px;
+      box-sizing: border-box;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0 1.2rem;
+      height: 38px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    button.secondary {
+      background: #18181b;
+      color: var(--text);
+      border: 1px solid var(--border);
+      height: 36px;
+    }
+
+    button.secondary:hover {
+      background: #27272a;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 1.2rem 0.8rem;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 2rem;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.4rem;
+    }
+
+    .search-container {
+      margin-bottom: 1.25rem;
+    }
+
+    .search-input {
+      width: 100%;
+      max-width: 320px;
+      background: #121215;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      color: var(--text);
+      box-sizing: border-box;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 0.8rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: #18181b;
+      font-weight: 600;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-ok { background: var(--success-bg); color: var(--accent); }
+    .badge-warn { background: var(--warning-bg); color: var(--warning); }
+    .badge-vencido { background: var(--danger-bg); color: var(--danger); }
+    .badge-err { background: var(--purple-bg); color: var(--purple); }
+    .badge-loading { background: var(--loading-bg); color: #38bdf8; }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .action-cell {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .btn-icon {
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 0.95rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      color: var(--text);
+      background: #27272a;
+    }
+
+    .btn-del:hover {
+      color: var(--danger);
+      background: var(--danger-bg);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      max-width: 450px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal h3 {
+      margin-top: 0;
+      color: var(--warning);
+      font-size: 1.1rem;
+    }
+
+    .modal-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 1rem 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .modal-list li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 0.6rem;
+      background: var(--warning);
+      color: #000;
+      font-weight: 700;
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+<body>
 
-  <!-- Header / Navbar -->
-  <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
-      <div class="flex items-center space-x-3">
-        <i class="fa-solid fa-shield-halved text-emerald-400 text-2xl"></i>
-        <h1 class="text-xl font-bold tracking-wide">Monitor SSL</h1>
+<div class="container">
+  <div class="header-row">
+    <h1>Vencimientos SSL</h1>
+    <span id="modeBadge" class="mode-badge mode-view" onclick="alternarModoAdmin()">🔒 Modo Lectura</span>
+  </div>
+  <p class="desc">Sistema de monitoreo continuo de certificados SSL.</p>
+
+  <div class="card admin-only" id="adminPanel">
+    <div class="top-controls">
+      <div class="upload-box" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <strong>Cargar planilla (Excel / CSV)</strong>
+        <p>— Arrastrá o haz clic</p>
+        <input type="file" id="fileInput" accept=".csv, .xlsx, .xls" style="display: none" onchange="procesarArchivo(this.files[0])">
       </div>
-      <div class="flex items-center space-x-4">
-        <span id="adminStatusBadge" class="text-xs px-2.5 py-1 rounded-full font-semibold bg-slate-700 text-slate-400">
-          Modo Lectura
-        </span>
-        <button id="adminBtn" onclick="alternarModoAdmin()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-200 shadow">
-          <i class="fa-solid fa-lock mr-2"></i>Acceso Admin
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main Content -->
-  <main class="flex-grow max-w-7xl w-full mx-auto p-6 space-y-6">
-
-    <!-- Panel de Administración (Agregar Dominio) -->
-    <div id="adminPanel" class="hidden bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
-      <h2 class="text-lg font-semibold mb-3 text-slate-200">Agregar Nuevo Dominio</h2>
-      <form id="addDomainForm" onsubmit="agregarDominio(event)" class="flex gap-3">
-        <input type="text" id="domainInput" placeholder="ejemplo.com" required
-          class="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:border-indigo-500 transition">
-        <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-medium transition shadow">
-          <i class="fa-solid fa-plus mr-2"></i>Agregar
-        </button>
-      </form>
-    </div>
-
-    <!-- Acciones Globales -->
-    <div class="flex justify-between items-center">
-      <p class="text-slate-400 text-sm">Mostrando dominios monitoreados</p>
-      <button onclick="verificarTodos()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-4 py-2 rounded-lg text-sm transition">
-        <i class="fa-solid fa-rotate mr-2"></i>Actualizar Todos
-      </button>
-    </div>
-
-    <!-- Tabla de Dominios -->
-    <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-lg">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-900/50 text-slate-400 uppercase text-xs border-b border-slate-700">
-            <tr>
-              <th scope="col" class="py-3 px-4">Dominio</th>
-              <th scope="col" class="py-3 px-4">Fecha Vencimiento</th>
-              <th scope="col" class="py-3 px-4">Días Restantes</th>
-              <th scope="col" class="py-3 px-4">Estado</th>
-              <th scope="col" class="py-3 px-4 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tablaDominios" class="divide-y divide-slate-700/50">
-            <!-- Filas generadas dinámicamente -->
-          </tbody>
-        </table>
+      
+      <div class="input-row">
+        <input type="text" id="singleUrl" placeholder="Agregar URL manual (ej: google.com)">
+        <button onclick="agregarUrlSuelta()">Agregar</button>
       </div>
     </div>
-  </main>
+  </div>
 
-  <!-- JavaScript Script -->
-  <script>
-    // Configuración de la API en Render
-    const API_BASE_URL = "https://py-server-ssl.onrender.com";
+  <div class="stats">
+    <div class="stat-card"><div class="stat-val" id="cntVigentes" style="color: var(--accent);">0</div><div class="stat-label">Vigentes</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntPorVencer" style="color: var(--warning);">0</div><div class="stat-label">Por vencer (≤7d)</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntVencidos" style="color: var(--danger);">0</div><div class="stat-label">Vencidos</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntError" style="color: var(--purple);">0</div><div class="stat-label">Error consulta</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntTotal">0</div><div class="stat-label">Total Monitoreados</div></div>
+  </div>
 
-    // Dominios por defecto
-    const dominiosPredeterminados = ["google.com", "github.com", "render.com"];
+  <div class="search-container">
+    <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar sitio..." oninput="renderTabla()">
+  </div>
 
-    // Estado local
-    let listaDominios = JSON.parse(localStorage.getItem('ssl_dominios')) || dominiosPredeterminados;
-    let esAdmin = sessionStorage.getItem('ssl_admin_active') === 'true';
+  <div class="actions">
+    <span id="cantSitiosText" style="font-size: 0.85rem; color: var(--text-muted);">0 sitios</span>
+    <div class="action-buttons">
+      <span class="last-update" id="lastUpdateText">Última act: Sin consultas</span>
+      <button class="secondary" id="btnRechequear" onclick="reconsultarTodo()">Rechequear todo</button>
+      <button class="secondary" onclick="exportarCSV()">Exportar CSV</button>
+    </div>
+  </div>
 
-    // Al cargar la página
-    document.addEventListener("DOMContentLoaded", () => {
-      actualizarInterfazModo();
-      renderTabla();
-      verificarTodos();
-    });
+  <table>
+    <thead>
+      <tr>
+        <th>URL</th>
+        <th>Estado</th>
+        <th>Días restantes</th>
+        <th>Vence el</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tablaBody">
+    </tbody>
+  </table>
+</div>
 
-    // Guardar cambios en LocalStorage
-    function guardarDominios() {
-      localStorage.setItem('ssl_dominios', JSON.stringify(listaDominios));
-    }
+<div class="modal-overlay" id="alertModal">
+  <div class="modal">
+    <h3>⚠️ Alerta de Certificados por Vencer</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted);">Los siguientes sitios vencen en menos de 7 días o ya están vencidos:</p>
+    <ul class="modal-list" id="modalList"></ul>
+    <button class="modal-btn" onclick="cerrarModal()">Entendido</button>
+  </div>
+</div>
 
-    // Cambiar Modo Administrador conectando con backend en Python
-    async function alternarModoAdmin() {
-      if (esAdmin) {
-        if (confirm('¿Deseas salir del modo administración?')) {
-          sessionStorage.removeItem('ssl_admin_active');
-          esAdmin = false;
-          actualizarInterfazModo();
-          renderTabla();
-        }
-      } else {
-        const pass = prompt('Ingresa la contraseña de administración:');
-        if (!pass) return;
+<script>
+  // URL BASE DE TU API EN RENDER
+  const BACKEND_URL = "https://py-server-ssl.onrender.com";
 
-        try {
-          const response = await fetch(`${API_BASE_URL}/verify-admin`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pass })
-          });
+  let listaDominios = [];
+  let timerModal = null;
+  let chequeandoTodo = false;
+  let esAdmin = false;
 
-          const result = await response.json();
+  function verificarSesionAdmin() {
+    esAdmin = sessionStorage.getItem('ssl_admin_active') === 'true';
+    actualizarInterfazModo();
+  }
 
-          if (result.success) {
-            sessionStorage.setItem('ssl_admin_active', 'true');
-            esAdmin = true;
-            actualizarInterfazModo();
-            renderTabla();
-          } else {
-            alert('Contraseña incorrecta.');
-          }
-        } catch (error) {
-          alert('Error al conectar con el servidor de autenticación.');
-          console.error('Error:', error);
-        }
+  async function alternarModoAdmin() {
+    if (esAdmin) {
+      if (confirm('¿Deseas salir del modo administración?')) {
+        sessionStorage.removeItem('ssl_admin_active');
+        esAdmin = false;
+        actualizarInterfazModo();
+        renderTabla();
       }
-    }
-
-    // Actualizar UI según el rol (Admin / Lectura)
-    function actualizarInterfazModo() {
-      const badge = document.getElementById('adminStatusBadge');
-      const btn = document.getElementById('adminBtn');
-      const panel = document.getElementById('adminPanel');
-
-      if (esAdmin) {
-        badge.textContent = 'Modo Admin';
-        badge.className = 'text-xs px-2.5 py-1 rounded-full font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-        btn.innerHTML = '<i class="fa-solid fa-lock-open mr-2"></i>Salir Admin';
-        btn.className = 'bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition duration-200';
-        panel.classList.remove('hidden');
-      } else {
-        badge.textContent = 'Modo Lectura';
-        badge.className = 'text-xs px-2.5 py-1 rounded-full font-semibold bg-slate-700 text-slate-400';
-        btn.innerHTML = '<i class="fa-solid fa-lock mr-2"></i>Acceso Admin';
-        btn.className = 'bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-200 shadow';
-        panel.classList.add('hidden');
-      }
-    }
-
-    // Renderizar la tabla principal
-    function renderTabla() {
-      const tbody = document.getElementById('tablaDominios');
-      tbody.innerHTML = '';
-
-      listaDominios.forEach((dom) => {
-        const tr = document.createElement('tr');
-        tr.id = `domain-row-${dom.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        tr.className = 'hover:bg-slate-700/30 transition';
-
-        tr.innerHTML = `
-          <td class="py-3 px-4 font-medium text-slate-100">${dom}</td>
-          <td class="py-3 px-4 fecha-val">Consultando...</td>
-          <td class="py-3 px-4 dias-val">-</td>
-          <td class="py-3 px-4 estado-val">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700 text-slate-300">
-              Cargando
-            </span>
-          </td>
-          <td class="py-3 px-4 text-right space-x-2">
-            <button onclick="verificarSSL('${dom}')" title="Revisar" class="text-slate-400 hover:text-indigo-400 transition">
-              <i class="fa-solid fa-arrows-rotate"></i>
-            </button>
-            ${esAdmin ? `
-              <button onclick="eliminarDominio('${dom}')" title="Eliminar" class="text-slate-400 hover:text-rose-400 transition">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            ` : ''}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Consultar SSL de un dominio específico
-    async function verificarSSL(dominio) {
-      const rowId = `domain-row-${dominio.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const row = document.getElementById(rowId);
-      if (!row) return;
-
-      const fechaCell = row.querySelector('.fecha-val');
-      const diasCell = row.querySelector('.dias-val');
-      const estadoCell = row.querySelector('.estado-val');
-
-      fechaCell.textContent = '...';
-      diasCell.textContent = '...';
+    } else {
+      const pass = prompt('Ingresa la contraseña de administración:');
+      if (!pass) return;
 
       try {
-        const res = await fetch(`${API_BASE_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`);
-        const data = await res.json();
+        const response = await fetch(`${BACKEND_URL}/verify-admin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
 
-        if (data.error) {
-          fechaCell.textContent = 'N/D';
-          diasCell.textContent = 'N/D';
-          estadoCell.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-500/20 text-rose-400 border border-rose-500/30">Error</span>`;
-          return;
-        }
+        const result = await response.json();
 
-        fechaCell.textContent = data.vence;
-        diasCell.textContent = `${data.diasRestantes} días`;
-
-        // Indicador dinámico por días restantes
-        if (data.diasRestantes <= 15) {
-          estadoCell.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-500/20 text-rose-400 border border-rose-500/30">Crítico</span>`;
-        } else if (data.diasRestantes <= 30) {
-          estadoCell.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">Próximo</span>`;
+        if (result.success) {
+          sessionStorage.setItem('ssl_admin_active', 'true');
+          esAdmin = true;
+          actualizarInterfazModo();
+          renderTabla();
         } else {
-          estadoCell.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Válido</span>`;
+          alert('Contraseña incorrecta.');
         }
-
-      } catch (err) {
-        fechaCell.textContent = 'N/D';
-        diasCell.textContent = 'N/D';
-        estadoCell.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-500/20 text-rose-400 border border-rose-500/30">Desconectado</span>`;
+      } catch (error) {
+        alert('Error de conexión con el servidor de autenticación.');
+        console.error('Error de autenticación:', error);
       }
     }
+  }
 
-    // Verificar todos los dominios
-    function verificarTodos() {
-      listaDominios.forEach(dom => verificarSSL(dom));
+  function actualizarInterfazModo() {
+    const badge = document.getElementById('modeBadge');
+    const adminPanel = document.getElementById('adminPanel');
+
+    if (esAdmin) {
+      badge.innerHTML = '🔑 Modo Admin (Salir)';
+      badge.className = 'mode-badge mode-admin';
+      adminPanel.style.display = 'block';
+    } else {
+      badge.innerHTML = '🔒 Modo Lectura (Acceso)';
+      badge.className = 'mode-badge mode-view';
+      adminPanel.style.display = 'none';
     }
+  }
 
-    // Agregar dominio (Solo Admin)
-    function agregarDominio(e) {
-      e.preventDefault();
-      const input = document.getElementById('domainInput');
-      const nuevoDominio = input.value.trim().toLowerCase();
+  function actualizarTimestamp() {
+    const ahora = new Date();
+    const hora = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const fecha = ahora.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    document.getElementById('lastUpdateText').innerText = `Última act: ${fecha} ${hora}`;
+  }
 
-      if (nuevoDominio && !listaDominios.includes(nuevoDominio)) {
-        listaDominios.push(nuevoDominio);
-        guardarDominios();
-        renderTabla();
-        verificarSSL(nuevoDominio);
-        input.value = '';
+  function esIP(str) {
+    const regexIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const regexIPv6 = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+    return regexIPv4.test(str) || regexIPv6.test(str);
+  }
+
+  function limpiarUrl(url) {
+    if (!url) return '';
+    return url.trim().toLowerCase()
+      .replace(/^(https?:\/\/)/, '')
+      .replace(/\/$/, '')
+      .split('/')[0]
+      .split(':')[0];
+  }
+
+  function guardarPersistencia() {
+    localStorage.setItem('ssl_dominios', JSON.stringify(listaDominios));
+  }
+
+  function cargarPersistencia() {
+    const guardados = localStorage.getItem('ssl_dominios');
+    if (guardados) {
+      try {
+        listaDominios = JSON.parse(guardados);
+        listaDominios = listaDominios.filter(d => !esIP(limpiarUrl(d.domain)));
+        ordenarYRenderizar();
+      } catch (e) {
+        listaDominios = [];
       }
     }
+  }
 
-    // Eliminar dominio (Solo Admin)
-    function eliminarDominio(dominio) {
-      if (confirm(`¿Eliminar ${dominio} de la lista?`)) {
-        listaDominios = listaDominios.filter(d => d !== dominio);
-        guardarDominios();
-        renderTabla();
-        verificarTodos();
+  async function consultarSSL(dominio) {
+    if (!dominio) return { error: "URL inválida" };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        return await res.json();
       }
+    } catch (e) {
+      clearTimeout(timeoutId);
     }
-  </script>
+
+    return { error: "Error de consulta" };
+  }
+
+  function ordenarYRenderizar() {
+    listaDominios.sort((a, b) => {
+      if (a.cargando && !b.cargando) return 1;
+      if (!a.cargando && b.cargando) return -1;
+      
+      const valA = (typeof a.diasRestantes === 'number' && !a.error) ? a.diasRestantes : 99999;
+      const valB = (typeof b.diasRestantes === 'number' && !b.error) ? b.diasRestantes : 99999;
+      
+      if (valA !== valB) {
+        return valA - valB;
+      }
+
+      return a.domain.localeCompare(b.domain);
+    });
+
+    renderTabla();
+  }
+
+  function renderTabla() {
+    const tbody = document.getElementById('tablaBody');
+    const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+    tbody.innerHTML = '';
+
+    let cntVigentes = 0, cntPorVencer = 0, cntVencidos = 0, cntError = 0;
+
+    listaDominios.forEach((item) => {
+      if (!item.cargando) {
+        if (item.error) {
+          cntError++;
+        } else if (item.diasRestantes <= 0) {
+          cntVencidos++;
+        } else if (item.diasRestantes <= 7) {
+          cntPorVencer++;
+        } else {
+          cntVigentes++;
+        }
+      }
+
+      if (query && !item.domain.toLowerCase().includes(query)) {
+        return;
+      }
+
+      const tr = document.createElement('tr');
+      let estadoHtml = '';
+      let diasHtml = '—';
+      let venceHtml = '—';
+
+      if (item.cargando) {
+        estadoHtml = `<span class="badge badge-loading">Consultando...</span>`;
+      } else if (item.error) {
+        estadoHtml = `<span class="badge badge-err">${item.error}</span>`;
+      } else {
+        venceHtml = item.vence || '—';
+        diasHtml = item.diasRestantes !== null ? item.diasRestantes : '—';
+
+        if (item.diasRestantes <= 0) {
+          estadoHtml = `<span class="badge badge-vencido">Vencido</span>`;
+        } else if (item.diasRestantes <= 7) {
+          estadoHtml = `<span class="badge badge-warn">Por vencer</span>`;
+        } else {
+          estadoHtml = `<span class="badge badge-ok">Vigente</span>`;
+        }
+      }
+
+      const btnEliminar = esAdmin 
+        ? `<button class="btn-icon btn-del" title="Eliminar" onclick="eliminarDominio('${item.domain}')">&times;</button>` 
+        : '';
+
+      tr.innerHTML = `
+        <td><strong>${item.domain}</strong></td>
+        <td>${estadoHtml}</td>
+        <td>${diasHtml}</td>
+        <td>${venceHtml}</td>
+        <td>
+          <div class="action-cell">
+            <button class="btn-icon" title="Rechequear este sitio" onclick="reconsultarIndividual('${item.domain}')">🔄</button>
+            ${btnEliminar}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('cntVigentes').innerText = cntVigentes;
+    document.getElementById('cntPorVencer').innerText = cntPorVencer;
+    document.getElementById('cntVencidos').innerText = cntVencidos;
+    document.getElementById('cntError').innerText = cntError;
+    document.getElementById('cntTotal').innerText = listaDominios.length;
+    document.getElementById('cantSitiosText').innerText = `${listaDominios.length} sitios monitoreados`;
+  }
+
+  async function procesarDominio(dominio) {
+    const item = listaDominios.find(d => d.domain === dominio);
+    if (!item) return;
+
+    item.cargando = true;
+    renderTabla();
+
+    const res = await consultarSSL(item.domain);
+    item.cargando = false;
+    item.vence = res.vence || null;
+    item.diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
+    item.error = res.error || null;
+
+    guardarPersistencia();
+    ordenarYRenderizar();
+  }
+
+  function reconsultarIndividual(dominio) {
+    procesarDominio(dominio);
+  }
+
+  function agregarDominio(dominio) {
+    if (!esAdmin) return;
+    const clean = limpiarUrl(dominio);
+    
+    if (!clean || esIP(clean)) return;
+    if (listaDominios.some(d => limpiarUrl(d.domain) === clean)) return;
+
+    listaDominios.push({ domain: clean, cargando: true, vence: null, diasRestantes: null, error: null });
+    guardarPersistencia();
+    procesarDominio(clean);
+  }
+
+  function agregarUrlSuelta() {
+    const input = document.getElementById('singleUrl');
+    if (input.value) {
+      agregarDominio(input.value);
+      input.value = '';
+    }
+  }
+
+  function eliminarDominio(dominio) {
+    if (!esAdmin) return;
+    listaDominios = listaDominios.filter(d => d.domain !== dominio);
+    guardarPersistencia();
+    ordenarYRenderizar();
+  }
+
+  async function reconsultarTodo() {
+    if (chequeandoTodo || listaDominios.length === 0) return;
+    chequeandoTodo = true;
+
+    const btn = document.getElementById('btnRechequear');
+    btn.disabled = true;
+    btn.innerText = "Consultando...";
+
+    actualizarTimestamp();
+
+    listaDominios.forEach(d => d.cargando = true);
+    renderTabla();
+
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < listaDominios.length; i += BATCH_SIZE) {
+      const lote = listaDominios.slice(i, i + BATCH_SIZE);
+      await Promise.all(lote.map(async (item) => {
+        const res = await consultarSSL(item.domain);
+        item.cargando = false;
+        item.vence = res.vence || null;
+        item.diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
+        item.error = res.error || null;
+      }));
+      guardarPersistencia();
+      ordenarYRenderizar();
+    }
+
+    chequeandoTodo = false;
+    btn.disabled = false;
+    btn.innerText = "Rechequear todo";
+
+    verificarAlertas();
+  }
+
+  function procesarArchivo(file) {
+    if (!esAdmin || !file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+      rows.forEach(row => {
+        if (row && row.length > 0) {
+          const val = row[0] ? row[0].toString() : '';
+          if (val && !val.toLowerCase().includes('url') && !val.toLowerCase().includes('domain')) {
+            agregarDominio(val);
+          }
+        }
+      });
+    };
+    reader.readAsArrayBuffer(file);
+    document.getElementById('fileInput').value = '';
+  }
+
+  function verificarAlertas() {
+    const hoy = new Date().toLocaleDateString('es-AR');
+    const ultimaAlerta = localStorage.getItem('ssl_ultima_alerta');
+
+    if (ultimaAlerta === hoy) return;
+
+    const hayPendientes = listaDominios.some(d => d.cargando);
+    if (hayPendientes) return;
+
+    const criticos = listaDominios.filter(d => d.diasRestantes !== null && d.diasRestantes <= 7 && !d.error);
+    if (criticos.length > 0) {
+      const modalList = document.getElementById('modalList');
+      modalList.innerHTML = '';
+      criticos.forEach(c => {
+        const li = document.createElement('li');
+        const txtStatus = c.diasRestantes <= 0 ? 'VENCIDO' : `${c.diasRestantes} días restantes`;
+        li.innerHTML = `<span><strong>${c.domain}</strong></span><span style="color: var(--warning)">${txtStatus}</span>`;
+        modalList.appendChild(li);
+      });
+      
+      document.getElementById('alertModal').classList.add('active');
+      localStorage.setItem('ssl_ultima_alerta', hoy);
+
+      if (timerModal) clearTimeout(timerModal);
+      timerModal = setTimeout(() => {
+        cerrarModal();
+      }, 300000);
+    }
+  }
+
+  function cerrarModal() {
+    document.getElementById('alertModal').classList.remove('active');
+    if (timerModal) {
+      clearTimeout(timerModal);
+      timerModal = null;
+    }
+  }
+
+  function exportarCSV() {
+    if (listaDominios.length === 0) return;
+    let csvContent = "data:text/csv;charset=utf-8,URL,Estado,Dias Restantes,Vence El\n";
+
+    listaDominios.forEach(item => {
+      let estado = item.error ? item.error : (item.diasRestantes <= 0 ? "Vencido" : (item.diasRestantes <= 7 ? "Por vencer" : "Vigente"));
+      csvContent += `"${item.domain}","${estado}","${item.diasRestantes || ''}","${item.vence || ''}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "vencimientos_ssl.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    verificarSesionAdmin();
+    cargarPersistencia();
+
+    const dropZone = document.getElementById('dropZone');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => {
+      dropZone.addEventListener(eName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eName => {
+      dropZone.addEventListener(eName, () => dropZone.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eName => {
+      dropZone.addEventListener(eName, () => dropZone.classList.remove('dragover'), false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      if (!esAdmin) return;
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) procesarArchivo(files[0]);
+    }, false);
+
+    setInterval(() => {
+      if (listaDominios.length > 0) {
+        reconsultarTodo();
+      }
+    }, 3600000);
+  });
+</script>
+
 </body>
 </html>
