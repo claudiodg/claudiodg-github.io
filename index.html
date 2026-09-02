@@ -234,9 +234,14 @@
 
       document.getElementById('ultimaAct').textContent = `Última act: ${new Date().toLocaleTimeString()}`;
 
-      // Procesar en tandas pequeñas para evitar saturar el servidor
-      for (let i = 0; i < sitios.length; i++) {
-        await rechequearSitio(i);
+      // Procesar en tandas de a 5 sitios simultáneos
+      const CONCURRENCY_LIMIT = 5;
+      for (let i = 0; i < sitios.length; i += CONCURRENCY_LIMIT) {
+        const lote = [];
+        for (let j = i; j < i + CONCURRENCY_LIMIT && j < sitios.length; j++) {
+          lote.push(rechequearSitio(j));
+        }
+        await Promise.all(lote);
       }
 
       if (icon) icon.classList.remove('animate-spin');
