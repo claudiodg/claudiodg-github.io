@@ -20,6 +20,8 @@
       --warning-bg: #45300f;
       --success-bg: #0f381e;
       --loading-bg: #1e293b;
+      --purple: #a855f7;
+      --purple-bg: #3b0764;
     }
 
     body {
@@ -31,7 +33,7 @@
     }
 
     .container {
-      max-width: 1050px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
@@ -167,27 +169,27 @@
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1.25rem;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
       margin-bottom: 1.25rem;
     }
 
     .stat-card {
       background: var(--card);
       border: 1px solid var(--border);
-      padding: 1.6rem 1.25rem;
+      padding: 1.2rem 0.8rem;
       border-radius: 10px;
       text-align: center;
     }
 
     .stat-val {
-      font-size: 2.3rem;
+      font-size: 2rem;
       font-weight: bold;
       line-height: 1;
     }
 
     .stat-label {
-      font-size: 0.95rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
       margin-top: 0.4rem;
     }
@@ -243,7 +245,8 @@
 
     .badge-ok { background: var(--success-bg); color: var(--accent); }
     .badge-warn { background: var(--warning-bg); color: var(--warning); }
-    .badge-err { background: var(--danger-bg); color: var(--danger); }
+    .badge-vencido { background: var(--danger-bg); color: var(--danger); }
+    .badge-err { background: var(--purple-bg); color: var(--purple); }
     .badge-loading { background: var(--loading-bg); color: #38bdf8; }
 
     .actions {
@@ -368,8 +371,9 @@
 
   <div class="stats">
     <div class="stat-card"><div class="stat-val" id="cntVigentes" style="color: var(--accent);">0</div><div class="stat-label">Vigentes</div></div>
-    <div class="stat-card"><div class="stat-val" id="cntPorVencer" style="color: var(--warning);">0</div><div class="stat-label">Por vencer (≤7 días)</div></div>
-    <div class="stat-card"><div class="stat-val" id="cntError" style="color: var(--danger);">0</div><div class="stat-label">Vencidos / Error</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntPorVencer" style="color: var(--warning);">0</div><div class="stat-label">Por vencer (≤7d)</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntVencidos" style="color: var(--danger);">0</div><div class="stat-label">Vencidos</div></div>
+    <div class="stat-card"><div class="stat-val" id="cntError" style="color: var(--purple);">0</div><div class="stat-label">Error consulta</div></div>
     <div class="stat-card"><div class="stat-val" id="cntTotal">0</div><div class="stat-label">Total Monitoreados</div></div>
   </div>
 
@@ -474,26 +478,24 @@
       clearTimeout(timeoutId);
     }
 
-    return { error: "No se pudo consultar" };
+    return { error: "Error de consulta" };
   }
 
-  // ORDENAMIENTO: Menos días restantes ARRIBA
+  // ORDENAMIENTO: Menos días restantes ARRIBA, errores al final
   function ordenarYRenderizar() {
     listaDominios.sort((a, b) => {
-      // 1. Los que están cargando van al final
+      // 1. Cargando al final
       if (a.cargando && !b.cargando) return 1;
       if (!a.cargando && b.cargando) return -1;
       
-      // 2. Extraer días restantes considerando 0 como un valor crítico válido
+      // 2. Extraer días restantes (Errores van con valor muy alto para ir al final)
       const valA = (typeof a.diasRestantes === 'number' && !a.error) ? a.diasRestantes : 99999;
       const valB = (typeof b.diasRestantes === 'number' && !b.error) ? b.diasRestantes : 99999;
       
-      // 3. Ordenar de menor a mayor (Ej: -2, 0, 1, 5, 20...)
       if (valA !== valB) {
         return valA - valB;
       }
 
-      // Si tienen los mismos días o ambos tienen error, ordenar alfabéticamente por dominio
       return a.domain.localeCompare(b.domain);
     });
 
@@ -505,13 +507,19 @@
     const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
     tbody.innerHTML = '';
 
-    let cntVigentes = 0, cntPorVencer = 0, cntError = 0;
+    let cntVigentes = 0, cntPorVencer = 0, cntVencidos = 0, cntError = 0;
 
     listaDominios.forEach((item) => {
       if (!item.cargando) {
-        if (item.error || item.diasRestantes <= 0) cntError++;
-        else if (item.diasRestantes <= 7) cntPorVencer++;
-        else cntVigentes++;
+        if (item.error) {
+          cntError++;
+        } else if (item.diasRestantes <= 0) {
+          cntVencidos++;
+        } else if (item.diasRestantes <= 7) {
+          cntPorVencer++;
+        } else {
+          cntVigentes++;
+        }
       }
 
       if (query && !item.domain.toLowerCase().includes(query)) {
@@ -532,7 +540,7 @@
         diasHtml = item.diasRestantes !== null ? item.diasRestantes : '—';
 
         if (item.diasRestantes <= 0) {
-          estadoHtml = `<span class="badge badge-err">Vencido</span>`;
+          estadoHtml = `<span class="badge badge-vencido">Vencido</span>`;
         } else if (item.diasRestantes <= 7) {
           estadoHtml = `<span class="badge badge-warn">Por vencer</span>`;
         } else {
@@ -557,6 +565,7 @@
 
     document.getElementById('cntVigentes').innerText = cntVigentes;
     document.getElementById('cntPorVencer').innerText = cntPorVencer;
+    document.getElementById('cntVencidos').innerText = cntVencidos;
     document.getElementById('cntError').innerText = cntError;
     document.getElementById('cntTotal').innerText = listaDominios.length;
     document.getElementById('cantSitiosText').innerText = `${listaDominios.length} sitios monitoreados`;
@@ -608,7 +617,6 @@
     ordenarYRenderizar();
   }
 
-  // PROCESAMIENTO PARALELO LIGERO (Tandas de a 5)
   async function reconsultarTodo() {
     if (chequeandoTodo || listaDominios.length === 0) return;
     chequeandoTodo = true;
@@ -619,7 +627,6 @@
 
     actualizarTimestamp();
 
-    // Marcar todos como cargando
     listaDominios.forEach(d => d.cargando = true);
     renderTabla();
 
@@ -667,7 +674,6 @@
     document.getElementById('fileInput').value = '';
   }
 
-  // ALERTA: Solo 1 vez al día por fecha
   function verificarAlertas() {
     const hoy = new Date().toLocaleDateString('es-AR');
     const ultimaAlerta = localStorage.getItem('ssl_ultima_alerta');
