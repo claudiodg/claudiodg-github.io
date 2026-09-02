@@ -70,7 +70,6 @@
       margin-bottom: 1.5rem;
     }
 
-    /* Fila en 2 columnas: Cargar planilla + Agregar manual */
     .top-controls {
       display: grid;
       grid-template-columns: 1fr 1.2fr;
@@ -161,7 +160,11 @@
       background: #27272a;
     }
 
-    /* Tableros de métricas */
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -189,7 +192,6 @@
       margin-top: 0.4rem;
     }
 
-    /* Buscador compacto debajo de las cards */
     .search-container {
       margin-bottom: 1.25rem;
     }
@@ -379,7 +381,7 @@
     <span id="cantSitiosText" style="font-size: 0.85rem; color: var(--text-muted);">0 sitios</span>
     <div class="action-buttons">
       <span class="last-update" id="lastUpdateText">Última act: Sin consultas</span>
-      <button class="secondary" onclick="reconsultarTodo()">Rechequear todo</button>
+      <button class="secondary" id="btnRechequear" onclick="reconsultarTodo()">Rechequear todo</button>
       <button class="secondary" onclick="exportarCSV()">Exportar CSV</button>
     </div>
   </div>
@@ -395,7 +397,6 @@
       </tr>
     </thead>
     <tbody id="tablaBody">
-      <!-- Contenido dinámico -->
     </tbody>
   </table>
 </div>
@@ -412,6 +413,7 @@
 <script>
   let listaDominios = [];
   let timerModal = null;
+  let chequeandoTodo = false;
 
   function actualizarTimestamp() {
     const ahora = new Date();
@@ -456,9 +458,8 @@
     if (!dominio) return { error: "URL inválida" };
 
     const BACKEND_URL = "https://py-server-ssl.onrender.com";
-    
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       const res = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`, {
@@ -471,19 +472,23 @@
       }
     } catch (e) {
       clearTimeout(timeoutId);
-      console.error(e);
     }
 
     return { error: "No se pudo consultar" };
   }
 
+  // ORDENAMIENTO: Menos días restantes ARRIBA
   function ordenarYRenderizar() {
     listaDominios.sort((a, b) => {
-      if (a.cargando) return 1;
-      if (b.cargando) return -1;
-      if (a.diasRestantes === null || a.diasRestantes === undefined) return 1;
-      if (b.diasRestantes === null || b.diasRestantes === undefined) return -1;
-      return a.diasRestantes - b.diasRestantes;
+      // Si está cargando, dejarlo abajo
+      if (a.cargando && !b.cargando) return 1;
+      if (!a.cargando && b.cargando) return -1;
+      
+      // Errores / Sin datos abajo
+      const valA = (a.diasRestantes !== null && a.diasRestantes !== undefined && !a.error) ? a.diasRestantes : 99999;
+      const valB = (b.diasRestantes !== null && b.diasRestantes !== undefined && !b.error) ? b.diasRestantes : 99999;
+      
+      return valA - valB;
     });
 
     renderTabla();
@@ -496,7 +501,7 @@
 
     let cntVigentes = 0, cntPorVencer = 0, cntError = 0;
 
-    listaDominios.forEach((item, index) => {
+    listaDominios.forEach((item) => {
       if (!item.cargando) {
         if (item.error || item.diasRestantes <= 0) cntError++;
         else if (item.diasRestantes <= 7) cntPorVencer++;
@@ -517,8 +522,8 @@
       } else if (item.error) {
         estadoHtml = `<span class="badge badge-err">${item.error}</span>`;
       } else {
-        venceHtml = item.vence;
-        diasHtml = item.diasRestantes;
+        venceHtml = item.vence || '—';
+        diasHtml = item.diasRestantes !== null ? item.diasRestantes : '—';
 
         if (item.diasRestantes <= 0) {
           estadoHtml = `<span class="badge badge-err">Vencido</span>`;
@@ -536,8 +541,8 @@
         <td>${venceHtml}</td>
         <td>
           <div class="action-cell">
-            <button class="btn-icon" title="Rechequear este sitio" onclick="reconsultarIndividual(${index})">🔄</button>
-            <button class="btn-icon btn-del" title="Eliminar" onclick="eliminarDominio(${index})">&times;</button>
+            <button class="btn-icon" title="Rechequear este sitio" onclick="reconsultarIndividual('${item.domain}')">🔄</button>
+            <button class="btn-icon btn-del" title="Eliminar" onclick="eliminarDominio('${item.domain}')">&times;</button>
           </div>
         </td>
       `;
@@ -551,25 +556,25 @@
     document.getElementById('cantSitiosText').innerText = `${listaDominios.length} sitios monitoreados`;
   }
 
-  async function procesarItem(index) {
-    if (!listaDominios[index]) return;
-    listaDominios[index].cargando = true;
+  async function procesarDominio(dominio) {
+    const item = listaDominios.find(d => d.domain === dominio);
+    if (!item) return;
+
+    item.cargando = true;
     renderTabla();
 
-    const res = await consultarSSL(listaDominios[index].domain);
-    listaDominios[index].cargando = false;
-    listaDominios[index].vence = res.vence || null;
-    listaDominios[index].diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
-    listaDominios[index].error = res.error || null;
+    const res = await consultarSSL(item.domain);
+    item.cargando = false;
+    item.vence = res.vence || null;
+    item.diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
+    item.error = res.error || null;
 
-    actualizarTimestamp();
     guardarPersistencia();
     ordenarYRenderizar();
-    verificarAlertas();
   }
 
-  function reconsultarIndividual(index) {
-    procesarItem(index);
+  function reconsultarIndividual(dominio) {
+    procesarDominio(dominio);
   }
 
   function agregarDominio(dominio) {
@@ -578,10 +583,9 @@
     if (!clean || esIP(clean)) return;
     if (listaDominios.some(d => limpiarUrl(d.domain) === clean)) return;
 
-    const index = listaDominios.length;
     listaDominios.push({ domain: clean, cargando: true, vence: null, diasRestantes: null, error: null });
     guardarPersistencia();
-    procesarItem(index);
+    procesarDominio(clean);
   }
 
   function agregarUrlSuelta() {
@@ -592,15 +596,46 @@
     }
   }
 
-  function eliminarDominio(index) {
-    listaDominios.splice(index, 1);
+  function eliminarDominio(dominio) {
+    listaDominios = listaDominios.filter(d => d.domain !== dominio);
     guardarPersistencia();
     ordenarYRenderizar();
   }
 
-  function reconsultarTodo() {
+  // PROCESAMIENTO PARALELO LIGERO (Tandas de a 5)
+  async function reconsultarTodo() {
+    if (chequeandoTodo || listaDominios.length === 0) return;
+    chequeandoTodo = true;
+
+    const btn = document.getElementById('btnRechequear');
+    btn.disabled = true;
+    btn.innerText = "Consultando...";
+
     actualizarTimestamp();
-    listaDominios.forEach((_, idx) => procesarItem(idx));
+
+    // Marcar todos como cargando
+    listaDominios.forEach(d => d.cargando = true);
+    renderTabla();
+
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < listaDominios.length; i += BATCH_SIZE) {
+      const lote = listaDominios.slice(i, i + BATCH_SIZE);
+      await Promise.all(lote.map(async (item) => {
+        const res = await consultarSSL(item.domain);
+        item.cargando = false;
+        item.vence = res.vence || null;
+        item.diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
+        item.error = res.error || null;
+      }));
+      guardarPersistencia();
+      ordenarYRenderizar();
+    }
+
+    chequeandoTodo = false;
+    btn.disabled = false;
+    btn.innerText = "Rechequear todo";
+
+    verificarAlertas();
   }
 
   function procesarArchivo(file) {
@@ -626,8 +661,9 @@
     document.getElementById('fileInput').value = '';
   }
 
+  // ALERTA: Solo 1 vez al día por fecha
   function verificarAlertas() {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = new Date().toLocaleDateString('es-AR');
     const ultimaAlerta = localStorage.getItem('ssl_ultima_alerta');
 
     if (ultimaAlerta === hoy) return;
@@ -635,7 +671,7 @@
     const hayPendientes = listaDominios.some(d => d.cargando);
     if (hayPendientes) return;
 
-    const criticos = listaDominios.filter(d => d.diasRestantes !== null && d.diasRestantes <= 7);
+    const criticos = listaDominios.filter(d => d.diasRestantes !== null && d.diasRestantes <= 7 && !d.error);
     if (criticos.length > 0) {
       const modalList = document.getElementById('modalList');
       modalList.innerHTML = '';
