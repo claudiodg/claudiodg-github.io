@@ -480,15 +480,21 @@
   // ORDENAMIENTO: Menos días restantes ARRIBA
   function ordenarYRenderizar() {
     listaDominios.sort((a, b) => {
-      // Si está cargando, dejarlo abajo
+      // 1. Los que están cargando van al final
       if (a.cargando && !b.cargando) return 1;
       if (!a.cargando && b.cargando) return -1;
       
-      // Errores / Sin datos abajo
-      const valA = (a.diasRestantes !== null && a.diasRestantes !== undefined && !a.error) ? a.diasRestantes : 99999;
-      const valB = (b.diasRestantes !== null && b.diasRestantes !== undefined && !b.error) ? b.diasRestantes : 99999;
+      // 2. Extraer días restantes considerando 0 como un valor crítico válido
+      const valA = (typeof a.diasRestantes === 'number' && !a.error) ? a.diasRestantes : 99999;
+      const valB = (typeof b.diasRestantes === 'number' && !b.error) ? b.diasRestantes : 99999;
       
-      return valA - valB;
+      // 3. Ordenar de menor a mayor (Ej: -2, 0, 1, 5, 20...)
+      if (valA !== valB) {
+        return valA - valB;
+      }
+
+      // Si tienen los mismos días o ambos tienen error, ordenar alfabéticamente por dominio
+      return a.domain.localeCompare(b.domain);
     });
 
     renderTabla();
