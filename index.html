@@ -529,21 +529,37 @@
       .split(':')[0];
   }
 
-  function guardarPersistencia() {
-    localStorage.setItem('ssl_dominios', JSON.stringify(listaDominios));
+  // Guardar la lista global en el backend de Render
+  async function guardarPersistencia() {
+    if (!esAdmin) return;
+    try {
+      await fetch(`${BACKEND_URL}/save-domains`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domains: listaDominios })
+      });
+    } catch (e) {
+      console.error("Error al guardar dominios en el servidor:", e);
+    }
   }
 
-  function cargarPersistencia() {
-    const guardados = localStorage.getItem('ssl_dominios');
-    if (guardados) {
-      try {
-        listaDominios = JSON.parse(guardados);
-        listaDominios = listaDominios.filter(d => !esIP(limpiarUrl(d.domain)));
-        ordenarYRenderizar();
-      } catch (e) {
-        listaDominios = [];
+  // Cargar la lista global desde el backend de Render
+  async function cargarPersistencia() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/get-domains`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.domains)) {
+          listaDominios = data.domains.filter(d => !esIP(limpiarUrl(d.domain)));
+          ordenarYRenderizar();
+          return;
+        }
       }
+    } catch (e) {
+      console.error("Error al cargar dominios desde el servidor:", e);
     }
+    listaDominios = [];
+    renderTabla();
   }
 
   async function consultarSSL(dominio) {
@@ -672,7 +688,7 @@
     item.diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
     item.error = res.error || null;
 
-    guardarPersistencia();
+    await guardarPersistencia();
     ordenarYRenderizar();
   }
 
@@ -680,7 +696,7 @@
     procesarDominio(dominio);
   }
 
-  function agregarDominio(dominio) {
+  async function agregarDominio(dominio) {
     if (!esAdmin) return;
     const clean = limpiarUrl(dominio);
     
@@ -688,7 +704,7 @@
     if (listaDominios.some(d => limpiarUrl(d.domain) === clean)) return;
 
     listaDominios.push({ domain: clean, cargando: true, vence: null, diasRestantes: null, error: null });
-    guardarPersistencia();
+    await guardarPersistencia();
     procesarDominio(clean);
   }
 
@@ -700,10 +716,10 @@
     }
   }
 
-  function eliminarDominio(dominio) {
+  async function eliminarDominio(dominio) {
     if (!esAdmin) return;
     listaDominios = listaDominios.filter(d => d.domain !== dominio);
-    guardarPersistencia();
+    await guardarPersistencia();
     ordenarYRenderizar();
   }
 
@@ -730,7 +746,7 @@
         item.diasRestantes = res.diasRestantes !== undefined ? res.diasRestantes : null;
         item.error = res.error || null;
       }));
-      guardarPersistencia();
+      await guardarPersistencia();
       ordenarYRenderizar();
     }
 
