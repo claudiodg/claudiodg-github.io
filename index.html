@@ -550,7 +550,12 @@
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.domains)) {
-          listaDominios = data.domains.filter(d => !esIP(limpiarUrl(d.domain)));
+          listaDominios = data.domains
+            .filter(d => !esIP(limpiarUrl(d.domain)))
+            .map(d => ({
+              ...d,
+              cargando: false
+            }));
           ordenarYRenderizar();
           return;
         }
@@ -836,9 +841,9 @@
     document.body.removeChild(link);
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('DOMContentLoaded', async () => {
     verificarSesionAdmin();
-    cargarPersistencia();
+    await cargarPersistencia();
 
     const dropZone = document.getElementById('dropZone');
 
