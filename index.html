@@ -568,6 +568,7 @@
             }));
           ordenarYRenderizar();
           verificarAlertas(false);
+          actualizarTimestamp(); // <-- Muestra la fecha/hora exacta en la que carga la página
           return;
         }
       }
@@ -576,6 +577,7 @@
     }
     listaDominios = [];
     renderTabla();
+    actualizarTimestamp(); // <-- Muestra la fecha/hora si no hay dominios
   }
 
   async function consultarSSL(dominio) {
