@@ -578,23 +578,32 @@
     renderTabla();
   }
 
-  async function consultarSSL(dominio) {
+  async function consultarSSL(dominio, maxIntentos = 3, esperaMs = 1000) {
     if (!dominio) return { error: "URL inválida" };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    for (let intento = 1; intento <= maxIntentos; intento++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    try {
-      const res = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+      try {
+        const res = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-      if (res.ok) {
-        return await res.json();
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.error) {
+            return data;
+          }
+        }
+      } catch (e) {
+        clearTimeout(timeoutId);
       }
-    } catch (e) {
-      clearTimeout(timeoutId);
+
+      if (intento < maxIntentos) {
+        await new Promise(resolve => setTimeout(resolve, esperaMs));
+      }
     }
 
     return { error: "Error de consulta" };
