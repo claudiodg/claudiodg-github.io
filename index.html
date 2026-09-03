@@ -403,7 +403,7 @@
       <div class="stat-val" id="cntPorVencer" style="color: var(--warning);">0</div>
       <div class="stat-label">
         Por vencer (≤ 
-        <input type="number" id="diasUmbralInput" value="7" min="1" max="365" style="width: 42px; text-align: center; background: #18181b; color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px; font-size: 0.8rem;" onchange="renderTabla()" oninput="renderTabla()"> 
+        <input type="number" id="diasUmbralInput" value="7" min="1" max="365" style="width: 42px; text-align: center; background: #18181b; color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px; font-size: 0.8rem;" onchange="renderTabla(); verificarAlertas(true);" oninput="renderTabla(); verificarAlertas(true);"> 
         días)
       </div>
     </div>
@@ -443,14 +443,15 @@
 <div class="modal-overlay" id="alertModal">
   <div class="modal">
     <h3>⚠️ Alerta de Certificados por Vencer</h3>
-    <p style="font-size: 0.85rem; color: var(--text-muted);">Los siguientes sitios vencen en menos de 7 días o ya están vencidos:</p>
+    <p style="font-size: 0.85rem; color: var(--text-muted);" id="modalTextDesc">
+      Los siguientes sitios están próximos a vencer o ya están vencidos:
+    </p>
     <ul class="modal-list" id="modalList"></ul>
     <button class="modal-btn" onclick="cerrarModal()">Entendido</button>
   </div>
 </div>
 
 <script>
-  // URL BASE DE TU API EN RENDER
   const BACKEND_URL = "https://py-server-ssl.onrender.com";
 
   let listaDominios = [];
@@ -536,7 +537,6 @@
       .split(':')[0];
   }
 
-  // Guardar la lista global en el backend de Render
   async function guardarPersistencia() {
     if (!esAdmin) return;
     try {
@@ -550,7 +550,6 @@
     }
   }
 
-  // Cargar la lista global desde el backend de Render
   async function cargarPersistencia() {
     try {
       const res = await fetch(`${BACKEND_URL}/get-domains`);
@@ -564,6 +563,7 @@
               cargando: false
             }));
           ordenarYRenderizar();
+          verificarAlertas(false);
           return;
         }
       }
@@ -706,6 +706,7 @@
 
     await guardarPersistencia();
     ordenarYRenderizar();
+    verificarAlertas(false);
   }
 
   function reconsultarIndividual(dominio) {
@@ -770,7 +771,7 @@
     btn.disabled = false;
     btn.innerText = "Rechequear todo";
 
-    verificarAlertas();
+    verificarAlertas(false);
   }
 
   function procesarArchivo(file) {
@@ -796,11 +797,9 @@
     document.getElementById('fileInput').value = '';
   }
 
-  function verificarAlertas() {
+  function verificarAlertas(esCambioManual = false) {
     const hoy = new Date().toLocaleDateString('es-AR');
     const ultimaAlerta = localStorage.getItem('ssl_ultima_alerta');
-
-    if (ultimaAlerta === hoy) return;
 
     const hayPendientes = listaDominios.some(d => d.cargando);
     if (hayPendientes) return;
@@ -808,9 +807,24 @@
     const umbralInput = document.getElementById('diasUmbralInput');
     const umbralDias = umbralInput && umbralInput.value !== '' ? parseInt(umbralInput.value, 10) : 7;
 
-    const criticos = listaDominios.filter(d => d.diasRestantes !== null && d.diasRestantes <= umbralDias && !d.error);
+    if (!esCambioManual && ultimaAlerta === hoy) return;
+
+    const umbralAEvaluar = esCambioManual ? umbralDias : 7;
+
+    const criticos = listaDominios.filter(d => 
+      d.diasRestantes !== null && 
+      d.diasRestantes <= umbralAEvaluar && 
+      !d.error
+    );
+
     if (criticos.length > 0) {
       const modalList = document.getElementById('modalList');
+      const modalTextDesc = document.getElementById('modalTextDesc');
+
+      if (modalTextDesc) {
+        modalTextDesc.innerText = `Los siguientes sitios vencen en ${umbralAEvaluar} días o menos, o ya están vencidos:`;
+      }
+
       modalList.innerHTML = '';
       criticos.forEach(c => {
         const li = document.createElement('li');
@@ -818,9 +832,12 @@
         li.innerHTML = `<span><strong>${c.domain}</strong></span><span style="color: var(--warning)">${txtStatus}</span>`;
         modalList.appendChild(li);
       });
-      
+
       document.getElementById('alertModal').classList.add('active');
-      localStorage.setItem('ssl_ultima_alerta', hoy);
+
+      if (!esCambioManual) {
+        localStorage.setItem('ssl_ultima_alerta', hoy);
+      }
 
       if (timerModal) clearTimeout(timerModal);
       timerModal = setTimeout(() => {
