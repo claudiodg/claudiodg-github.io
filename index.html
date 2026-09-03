@@ -103,7 +103,7 @@
 
     .top-controls {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr auto;
+      grid-template-columns: 1fr 1.2fr;
       gap: 0.75rem;
       align-items: center;
     }
@@ -184,23 +184,11 @@
       background: #18181b;
       color: var(--text);
       border: 1px solid var(--border);
-      height: 38px;
+      height: 36px;
     }
 
     button.secondary:hover {
       background: #27272a;
-    }
-
-    button.danger-btn {
-      background: var(--danger-bg);
-      color: var(--danger);
-      border: 1px solid var(--danger);
-      height: 38px;
-      font-weight: 600;
-    }
-
-    button.danger-btn:hover {
-      background: #601818;
     }
 
     button:disabled {
@@ -410,9 +398,6 @@
         <input type="text" id="singleUrl" placeholder="Agregar URL manual (ej: google.com)">
         <button onclick="agregarUrlSuelta()">Agregar</button>
       </div>
-
-      <button class="secondary" id="btnPingdom" onclick="sincronizarDesdePingdom()">📥 Importar desde Pingdom</button>
-      <button class="danger-btn" id="btnBorrarTodo" onclick="borrarTodo()">🗑️ Borrar todo</button>
     </div>
   </div>
 
@@ -583,7 +568,6 @@
             }));
           ordenarYRenderizar();
           verificarAlertas(false);
-          actualizarTimestamp();
           return;
         }
       }
@@ -594,32 +578,23 @@
     renderTabla();
   }
 
-  async function consultarSSL(dominio, maxIntentos = 3, esperaMs = 1000) {
+  async function consultarSSL(dominio) {
     if (!dominio) return { error: "URL inválida" };
 
-    for (let intento = 1; intento <= maxIntentos; intento++) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      try {
-        const res = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`, {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
+    try {
+      const res = await fetch(`${BACKEND_URL}/check-ssl?domain=${encodeURIComponent(dominio)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
 
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.error) {
-            return data;
-          }
-        }
-      } catch (e) {
-        clearTimeout(timeoutId);
+      if (res.ok) {
+        return await res.json();
       }
-
-      if (intento < maxIntentos) {
-        await new Promise(resolve => setTimeout(resolve, esperaMs));
-      }
+    } catch (e) {
+      clearTimeout(timeoutId);
     }
 
     return { error: "Error de consulta" };
@@ -762,67 +737,11 @@
     }
   }
 
-  async function sincronizarDesdePingdom() {
-    if (!esAdmin) return;
-    
-    const btn = document.getElementById('btnPingdom');
-    const textoOriginal = btn.innerText;
-    btn.disabled = true;
-    btn.innerText = "Sincronizando...";
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/sync-pingdom`);
-      const data = await res.json();
-
-      if (data.success && Array.isArray(data.domains)) {
-        let nuevos = 0;
-        data.domains.forEach(dom => {
-          const clean = limpiarUrl(dom);
-          if (clean && !esIP(clean) && !listaDominios.some(d => limpiarUrl(d.domain) === clean)) {
-            listaDominios.push({ domain: clean, cargando: true, vence: null, diasRestantes: null, error: null });
-            nuevos++;
-          }
-        });
-
-        if (nuevos > 0) {
-          await guardarPersistencia();
-          renderTabla();
-          alert(`Se importaron ${nuevos} dominios nuevos desde Pingdom.`);
-          reconsultarTodo();
-        } else {
-          alert('No se encontraron sitios nuevos en Pingdom.');
-        }
-      } else {
-        alert(`Error al importar de Pingdom: ${data.error || 'No se recibieron datos'}`);
-      }
-    } catch (e) {
-      console.error("Error en sincronización Pingdom:", e);
-      alert('Error de conexión con el servidor al importar desde Pingdom.');
-    } finally {
-      btn.disabled = false;
-      btn.innerText = textoOriginal;
-    }
-  }
-
   async function eliminarDominio(dominio) {
     if (!esAdmin) return;
     listaDominios = listaDominios.filter(d => d.domain !== dominio);
     await guardarPersistencia();
     ordenarYRenderizar();
-  }
-
-  async function borrarTodo() {
-    if (!esAdmin) return;
-    if (listaDominios.length === 0) {
-      alert('La lista ya está vacía.');
-      return;
-    }
-
-    if (confirm('⚠️ ¿Estás seguro de que deseas borrar TODOS los dominios monitoreados? Esta acción no se puede deshacer.')) {
-      listaDominios = [];
-      await guardarPersistencia();
-      ordenarYRenderizar();
-    }
   }
 
   async function reconsultarTodo() {
