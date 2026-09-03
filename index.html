@@ -399,7 +399,14 @@
 
   <div class="stats">
     <div class="stat-card"><div class="stat-val" id="cntVigentes" style="color: var(--accent);">0</div><div class="stat-label">Vigentes</div></div>
-    <div class="stat-card"><div class="stat-val" id="cntPorVencer" style="color: var(--warning);">0</div><div class="stat-label">Por vencer (≤7d)</div></div>
+    <div class="stat-card">
+      <div class="stat-val" id="cntPorVencer" style="color: var(--warning);">0</div>
+      <div class="stat-label">
+        Por vencer (≤ 
+        <input type="number" id="diasUmbralInput" value="7" min="1" max="365" style="width: 42px; text-align: center; background: #18181b; color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px; font-size: 0.8rem;" onchange="renderTabla()" oninput="renderTabla()"> 
+        días)
+      </div>
+    </div>
     <div class="stat-card"><div class="stat-val" id="cntVencidos" style="color: var(--danger);">0</div><div class="stat-label">Vencidos</div></div>
     <div class="stat-card"><div class="stat-val" id="cntError" style="color: var(--purple);">0</div><div class="stat-label">Error consulta</div></div>
     <div class="stat-card"><div class="stat-val" id="cntTotal">0</div><div class="stat-label">Total Monitoreados</div></div>
@@ -610,6 +617,10 @@
   function renderTabla() {
     const tbody = document.getElementById('tablaBody');
     const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+    
+    const umbralInput = document.getElementById('diasUmbralInput');
+    const umbralDias = umbralInput && umbralInput.value !== '' ? parseInt(umbralInput.value, 10) : 7;
+
     tbody.innerHTML = '';
 
     let cntVigentes = 0, cntPorVencer = 0, cntVencidos = 0, cntError = 0;
@@ -620,7 +631,7 @@
           cntError++;
         } else if (item.diasRestantes <= 0) {
           cntVencidos++;
-        } else if (item.diasRestantes <= 7) {
+        } else if (item.diasRestantes <= umbralDias) {
           cntPorVencer++;
         } else {
           cntVigentes++;
@@ -646,7 +657,7 @@
 
         if (item.diasRestantes <= 0) {
           estadoHtml = `<span class="badge badge-vencido">Vencido</span>`;
-        } else if (item.diasRestantes <= 7) {
+        } else if (item.diasRestantes <= umbralDias) {
           estadoHtml = `<span class="badge badge-warn">Por vencer</span>`;
         } else {
           estadoHtml = `<span class="badge badge-ok">Vigente</span>`;
@@ -794,7 +805,10 @@
     const hayPendientes = listaDominios.some(d => d.cargando);
     if (hayPendientes) return;
 
-    const criticos = listaDominios.filter(d => d.diasRestantes !== null && d.diasRestantes <= 7 && !d.error);
+    const umbralInput = document.getElementById('diasUmbralInput');
+    const umbralDias = umbralInput && umbralInput.value !== '' ? parseInt(umbralInput.value, 10) : 7;
+
+    const criticos = listaDominios.filter(d => d.diasRestantes !== null && d.diasRestantes <= umbralDias && !d.error);
     if (criticos.length > 0) {
       const modalList = document.getElementById('modalList');
       modalList.innerHTML = '';
@@ -827,8 +841,11 @@
     if (listaDominios.length === 0) return;
     let csvContent = "data:text/csv;charset=utf-8,URL,Estado,Dias Restantes,Vence El\n";
 
+    const umbralInput = document.getElementById('diasUmbralInput');
+    const umbralDias = umbralInput && umbralInput.value !== '' ? parseInt(umbralInput.value, 10) : 7;
+
     listaDominios.forEach(item => {
-      let estado = item.error ? item.error : (item.diasRestantes <= 0 ? "Vencido" : (item.diasRestantes <= 7 ? "Por vencer" : "Vigente"));
+      let estado = item.error ? item.error : (item.diasRestantes <= 0 ? "Vencido" : (item.diasRestantes <= umbralDias ? "Por vencer" : "Vigente"));
       csvContent += `"${item.domain}","${estado}","${item.diasRestantes || ''}","${item.vence || ''}"\n`;
     });
 
